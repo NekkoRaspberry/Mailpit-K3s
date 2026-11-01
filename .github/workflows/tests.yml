@@ -1,0 +1,34 @@
+# Run the Mailpit tests on the Raspberry Pi on every push to main or dev
+name: Mailpit Tests
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+# One test run at a time (all runs use the same test app names)
+concurrency:
+  group: mailpit-tests
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # Runner on the Raspberry Pi only for this repo (see ci/test-runner-helm-values.yaml)
+    runs-on: mailpit-runners
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+
+      # kubectl matching the K3s version
+      - name: Install kubectl
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -fsSLo "$HOME/bin/kubectl" https://dl.k8s.io/release/v1.36.5/bin/linux/arm64/kubectl
+          chmod +x "$HOME/bin/kubectl"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      # --no-restart: skip only the pod restart in test 03
+      - name: Run tests
+        run: ./tests/run-all.sh --no-restart

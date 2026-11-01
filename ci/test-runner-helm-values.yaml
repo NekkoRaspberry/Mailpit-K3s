@@ -1,0 +1,16 @@
+# Runner set only for the Mailpit-K3s repo, using the mailpit-tests account.
+# Install with:
+#   helm install mailpit-runners -n arc-runners -f ci/test-runner-helm-values.yaml \
+#     oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set --version 0.15.1
+githubConfigUrl: https://github.com/NekkoRaspberry/Mailpit-K3s
+githubConfigSecret: arc-mailpit-github-app   # GitHub App with access only to Mailpit-K3s
+runnerScaleSetName: mailpit-runners
+minRunners: 0
+maxRunners: 1
+template:
+  spec:
+    serviceAccountName: mailpit-tests
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:2.338.0
+        command: ["/home/runner/run.sh"]
