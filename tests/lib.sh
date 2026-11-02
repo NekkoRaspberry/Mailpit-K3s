@@ -1,9 +1,8 @@
 # Shared helpers for the tests (loaded by each test file, not run directly)
-# Use ~/.kube/config on the Pi; inside a pod (CI runner) kubectl uses the pod's own access
-if [[ -z "${KUBECONFIG:-}" && -f "$HOME/.kube/config" ]]; then export KUBECONFIG="$HOME/.kube/config"; fi
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NS=email
-TEST_NS=mailtest          # namespace for test apps (permanent, emptied after each test)
+TEST_NS=mailtest          # temporary namespace for test apps (deleted by run-all.sh)
 CLIENT=mailtest-client    # helper pod with curl, acts like an app
 MAILPIT=mailpit.email.svc.cluster.local
 FAILS=0
@@ -24,8 +23,15 @@ check_fails() {
   if "$@" >/dev/null 2>&1; then fail "$name"; else pass "$name"; fi
 }
 
+# contains "<text>" "<part>"  -> succeeds if text contains part
+contains() { grep -qF -- "$2" <<< "$1"; }
+
+# Name of the running Mailpit pod (it changes after every restart)
+mailpit_pod() { kubectl get pod -n "$NS" -l app=mailpit -o jsonpath='{.items[0].metadata.name}'; }
+
 # Helper pod that talks to Mailpit like an app would
 client_start() {
+  kubectl create namespace "$TEST_NS" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
   kubectl run "$CLIENT" -n "$TEST_NS" --restart=Never --image=curlimages/curl:8.22.0 \
     --command -- sleep 600 >/dev/null
   kubectl wait -n "$TEST_NS" --for=condition=Ready "pod/$CLIENT" --timeout=90s >/dev/null
@@ -54,9 +60,6 @@ count_tag() { api GET "/api/v1/search?query=tag:$1" | grep -o '"messages_count":
 
 # Delete all stored emails tagged with an app name
 delete_tag() { api DELETE "/api/v1/search?query=tag:$1" >/dev/null 2>&1; }
-
-# contains "<text>" "<part>"  -> succeeds if text contains part
-contains() { grep -qF -- "$2" <<< "$1"; }
 
 # Does Mailpit have a login for this app? (regex allowed, e.g. "mailtest[a-z]*")
 has_login() {

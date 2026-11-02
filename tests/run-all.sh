@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Run every test and print a summary.
-# Usage: ./run-all.sh              (all tests)
-#        ./run-all.sh --no-restart (skip only the pod restart in 03)
+# Run every test on the Pi and print a summary.
+# Adding/removing test apps restarts Mailpit a few times (a few seconds each).
+# Usage: ./run-all.sh
 cd "$(dirname "$0")"
-[[ "${1:-}" == "--no-restart" ]] && export NO_RESTART=1
+source ./lib.sh
 
 FAILED=()
 for TEST in [0-9][0-9]-*.sh; do
   bash "$TEST" || FAILED+=("$TEST")
   echo
 done
+
+# Remove the temporary test namespace
+kubectl delete namespace "$TEST_NS" --ignore-not-found >/dev/null
 
 if [[ ${#FAILED[@]} -eq 0 ]]; then
   echo "ALL TESTS PASSED"
