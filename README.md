@@ -108,7 +108,7 @@ Run on the Pi:
 
 Test apps use the temporary namespace `mailtest`, deleted at the end. Adding and removing them restarts Mailpit a few times (a few seconds each).
 
-On push, `.github/workflows/tests.yml` checks script syntax (shellcheck) and the manifest (kubeconform) on the Pi's ARC runner `nekko-runners`. It has no access to the cluster.
+On push, `.github/workflows/tests.yml` checks script syntax (shellcheck) and the manifest (kubeconform) on `ubuntu-latest` (it also works on `nekko-runners`). It has no access to the cluster.
 
 ## Notes
 
