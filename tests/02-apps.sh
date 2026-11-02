@@ -3,7 +3,7 @@
 # Creates temporary apps and removes them at the end.
 # NOTE: adding/removing an app restarts Mailpit (a few seconds each).
 source "$(dirname "$0")/lib.sh"
-echo "== 02 Scripting (new-app-email.sh, remove-app-email.sh)"
+echo "== 02 Apps (new-app-email.sh, remove-app-email.sh)"
 
 A=mailtesta
 B=mailtestb

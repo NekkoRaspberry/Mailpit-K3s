@@ -23,9 +23,8 @@ One shared Mailpit instance on K3s that catches the emails of all applications. 
 | `mailpit.yaml` | Namespace, service and Mailpit |
 | `new-app-email.sh` | Creates an SMTP login for one app |
 | `remove-app-email.sh` | Removes one app's login |
-| `tests/` | Health, scripting and deploy tests |
-| `ci/` | Runner access and runner set for GitHub Actions |
-| `.github/workflows/tests.yml` | Runs the tests on push to `main` and `dev` |
+| `tests/` | Tests, run on the Pi |
+| `.github/workflows/tests.yml` | Checks scripts and manifest on push to `main` and `dev` |
 
 ## Install
 
@@ -89,36 +88,27 @@ kubectl get secret -n email mailpit-ui -o jsonpath='{.data.password}' | base64 -
 
 ```bash
 kubectl get pods,pvc -n email                         # status
-kubectl logs -n email mailpit-0 --tail=50             # logs
+kubectl logs -n email deploy/mailpit --tail=50        # logs
 kubectl get secret -n email mailpit-smtp-users -o jsonpath='{.data.smtp-users}' | base64 -d | cut -d: -f1   # app logins
 ```
 
 ## Tests
 
+Run on the Pi:
 ```bash
-./tests/run-all.sh               # all tests
-./tests/run-all.sh --no-restart  # skip only the pod restart in 03
+./tests/run-all.sh
 ```
 
 | Test | Checks |
 |---|---|
 | `01-running.sh` | Pod, storage, service, logins required (SMTP and web UI), version, memory |
-| `02-scripting.sh` | Add/remove apps, emails tagged per app, wrong or other app's password rejected |
-| `03-deploying.sh` | Manifest valid, no drift, scripts, emails and logins survive a restart |
+| `02-apps.sh` | Add/remove apps, emails tagged per app, wrong or other app's password rejected |
+| `03-deploying.sh` | Manifest valid, no drift, emails and logins survive a restart |
 | `99-leftovers.sh` | Nothing left behind by the tests |
 
-Adding and removing test apps restarts Mailpit a few times (a few seconds each).
+Test apps use the temporary namespace `mailtest`, deleted at the end. Adding and removing them restarts Mailpit a few times (a few seconds each).
 
-### CI (GitHub Actions)
-
-`.github/workflows/tests.yml` runs the tests (without the restart) on every push to `main` and `dev`, on the `mailpit-runners` runner set.
-
-```bash
-kubectl apply -f ci/test-runner-permissions.yaml   # runner account, its permissions, test namespace mailtest
-helm install mailpit-runners -n arc-runners -f ci/test-runner-helm-values.yaml \
-  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set --version 0.15.1
-```
-Needs the Secret `arc-mailpit-github-app` (GitHub App with Administration access to this repo only).
+On push, `.github/workflows/tests.yml` checks script syntax (shellcheck) and the manifest (kubeconform) on the Pi's ARC runner `nekko-runners`. It has no access to the cluster.
 
 ## Notes
 

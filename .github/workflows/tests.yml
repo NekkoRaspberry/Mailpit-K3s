@@ -1,34 +1,31 @@
-# Run the Mailpit tests on the Raspberry Pi on every push to main or dev
-name: Mailpit Tests
+# Check the files on every push to main or dev.
+# Runs on the Pi's ARC runner (nekko-runners); it needs no access to the cluster.
+# The real tests run on the Pi: ./tests/run-all.sh
+name: Mailpit Checks
 
 on:
   push:
     branches: [main, dev]
   workflow_dispatch:
 
-# One test run at a time (all runs use the same test app names)
-concurrency:
-  group: mailpit-tests
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
 jobs:
-  test:
-    # Runner on the Raspberry Pi only for this repo (see ci/test-runner-helm-values.yaml)
-    runs-on: mailpit-runners
+  check:
+    runs-on: nekko-runners
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
 
-      # kubectl matching the K3s version
-      - name: Install kubectl
+      # Scripts: syntax and real errors (shellcheck from Ubuntu's packages)
+      - name: Check scripts
         run: |
-          mkdir -p "$HOME/bin"
-          curl -fsSLo "$HOME/bin/kubectl" https://dl.k8s.io/release/v1.36.5/bin/linux/arm64/kubectl
-          chmod +x "$HOME/bin/kubectl"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
+          for f in *.sh tests/*.sh; do bash -n "$f"; done
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck --severity=error *.sh tests/*.sh
 
-      # --no-restart: skip only the pod restart in test 03
-      - name: Run tests
-        run: ./tests/run-all.sh --no-restart
+      # Manifest: valid Kubernetes objects (ARM64 build for the Pi)
+      - name: Check manifest
+        run: |
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-arm64.tar.gz | tar xz kubeconform
+          ./kubeconform -strict -summary mailpit.yaml

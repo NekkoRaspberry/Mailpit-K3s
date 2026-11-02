@@ -1,4 +1,4 @@
-# Mailpit for K3s: namespace, internal service and the mail catcher itself
+# Mailpit for K3s: namespace, internal service, storage and the mail catcher itself
 # Apply with: kubectl apply -f mailpit.yaml
 
 # Separate namespace for shared email services
@@ -27,16 +27,30 @@ spec:
       port: 8025
       targetPort: 8025
 ---
-# One shared Mailpit instance for multiple applications.
+# Stored emails, kept when Mailpit restarts (e.g. after adding an app)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mailpit-data
+  namespace: email
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+# One shared Mailpit for multiple applications.
 # Catches every email (nothing is delivered to real inboxes).
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: mailpit
   namespace: email
 spec:
-  serviceName: mailpit
   replicas: 1
+  strategy:
+    type: Recreate   # stop the old pod before starting the new one (storage can only be used by one)
   selector:
     matchLabels:
       app: mailpit
@@ -100,6 +114,9 @@ spec:
               mountPath: /auth-ui
               readOnly: true
       volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mailpit-data
         # App logins (hashed): Secret mailpit-smtp-users, key smtp-users
         - name: smtp-users
           secret:
@@ -111,13 +128,3 @@ spec:
             items:
               - key: ui-users
                 path: ui-users
-  # Stored emails (k3s "local-path", currently the SD card)
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: local-path
-        resources:
-          requests:
-            storage: 1Gi
