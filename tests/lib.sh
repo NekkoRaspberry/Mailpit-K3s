@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared helpers for the tests (loaded by each test file, not run directly)
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
