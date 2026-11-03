@@ -10,7 +10,8 @@ One shared Mailpit instance on K3s that catches the emails of all applications. 
 | Image | `axllent/mailpit:v1.31.6` |
 | SMTP (inside the cluster) | `mailpit.email.svc.cluster.local:1025` |
 | Web UI + API (inside the cluster) | `mailpit.email.svc.cluster.local:8025` |
-| Exposure | ClusterIP only |
+| Web UI (home network) | `https://mailpit.home.arpa` (Traefik, name from Pi-hole) |
+| Exposure | Web UI on the home network over HTTPS only, SMTP inside the cluster only |
 | Storage | 1 Gi, `local-path`, newest 500 emails kept |
 | Memory limit | 128 Mi |
 | App logins | Secret `mailpit-smtp-users` (hashed) |
@@ -74,10 +75,7 @@ SMTP without encryption (no TLS/STARTTLS), login type PLAIN or LOGIN.
 
 ## View emails
 
-```bash
-kubectl port-forward -n email svc/mailpit 8025:8025
-```
-Open http://localhost:8025 (VS Code forwards the port automatically). Filter by app with the tag, e.g. `tag:nextcloud`.
+Open https://mailpit.home.arpa from any device at home that uses Pi-hole for DNS (install the home CA once, see Pihole-K3s). Filter by app with the tag, e.g. `tag:nextcloud`.
 
 Web UI password:
 ```bash
@@ -108,7 +106,7 @@ Run on the Pi:
 
 Test apps use the temporary namespace `mailtest`, deleted at the end. Adding and removing them restarts Mailpit a few times (a few seconds each).
 
-On push, `.github/workflows/tests.yml` checks script syntax (shellcheck) and the manifest (kubeconform) on the Pi's ARC runner `nekko-runners`. It has no access to the cluster.
+On push, `.github/workflows/tests.yml` checks script syntax (shellcheck) and the manifest (kubeconform) on `ubuntu-latest` (it also works on `nekko-runners`). It has no access to the cluster.
 
 ## Notes
 

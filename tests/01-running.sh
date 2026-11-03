@@ -11,8 +11,14 @@ check "Mailpit pod is Ready" \
   kubectl wait -n "$NS" --for=condition=Ready "pod/$POD" --timeout=10s
 check "storage (PVC) is Bound" \
   test "$(kubectl get pvc -n "$NS" mailpit-data -o jsonpath='{.status.phase}')" = Bound
-check "service is internal only (ClusterIP)" \
+check "SMTP service is internal only (ClusterIP)" \
   test "$(kubectl get svc -n "$NS" mailpit -o jsonpath='{.spec.type}')" = ClusterIP
+check "home network address is mailpit.home.arpa" \
+  test "$(kubectl get ingress -n "$NS" mailpit -o jsonpath='{.spec.rules[0].host}')" = mailpit.home.arpa
+LAN="$(kubectl get svc -n kube-system traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+check "web UI over HTTPS on the home network asks for login" \
+  test "$(kubectl exec -n "$TEST_NS" "$CLIENT" -- curl -sk -o /dev/null -w '%{http_code}' \
+    --resolve "mailpit.home.arpa:443:$LAN" https://mailpit.home.arpa/api/v1/info)" = 401
 check "login secrets exist" \
   kubectl get secret -n "$NS" mailpit-smtp-users mailpit-ui
 
