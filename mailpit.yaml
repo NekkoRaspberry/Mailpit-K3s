@@ -27,6 +27,30 @@ spec:
       port: 8025
       targetPort: 8025
 ---
+# Web UI on the home network: https://mailpit.home.arpa (Traefik, built into K3s)
+# Pi-hole points that name to the Pi. Only the web UI: SMTP stays internal.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mailpit
+  namespace: email
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure   # HTTPS only
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: mailpit.home.arpa
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mailpit
+                port:
+                  number: 8025
+---
 # Stored emails, kept when Mailpit restarts (e.g. after adding an app)
 apiVersion: v1
 kind: PersistentVolumeClaim
